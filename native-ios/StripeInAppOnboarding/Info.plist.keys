@@ -1,0 +1,7 @@
+<!--
+  Add these keys to the iOS app Info.plist.
+  Stripe Connect embedded onboarding uses the camera for identity documents
+  inside the in-app controller. It does not open Safari for that step.
+-->
+<key>NSCameraUsageDescription</key>
+<string>Pluse uses the camera so you can photograph your ID while setting up payouts.</string>
