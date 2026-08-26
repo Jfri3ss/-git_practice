@@ -2,16 +2,24 @@ import SwiftUI
 import UIKit
 
 /// SwiftUI entry point that presents Stripe Connect onboarding in-app.
-///
-/// Drop this on a host/creator payout setup screen. It does not open Safari.
-struct StripeConnectOnboardingButton: View {
-    let configuration: StripeConnectOnboardingCoordinator.Configuration
-    var label: String = "Continue Stripe setup"
-    var onFinished: (Result<StripeConnectAccountStatus, Error>) -> Void
+public struct StripeConnectOnboardingButton: View {
+    public var configuration: StripeConnectOnboardingCoordinator.Configuration
+    public var label: String
+    public var onFinished: (Result<StripeConnectAccountStatus, Error>) -> Void
 
     @State private var isPresenting = false
 
-    var body: some View {
+    public init(
+        configuration: StripeConnectOnboardingCoordinator.Configuration,
+        label: String = "Continue Stripe setup",
+        onFinished: @escaping (Result<StripeConnectAccountStatus, Error>) -> Void
+    ) {
+        self.configuration = configuration
+        self.label = label
+        self.onFinished = onFinished
+    }
+
+    public var body: some View {
         Button(label) {
             isPresenting = true
         }
@@ -27,9 +35,8 @@ struct StripeConnectOnboardingButton: View {
     }
 }
 
-/// Finds the nearest UIKit presenter and hands it to `StripeConnectOnboardingCoordinator`.
-private struct StripeConnectOnboardingPresenter: UIViewControllerRepresentable {
-    let configuration: StripeConnectOnboardingCoordinator.Configuration
+struct StripeConnectOnboardingPresenter: UIViewControllerRepresentable {
+    var configuration: StripeConnectOnboardingCoordinator.Configuration
     @Binding var isPresented: Bool
     var onFinished: (Result<StripeConnectAccountStatus, Error>) -> Void
 

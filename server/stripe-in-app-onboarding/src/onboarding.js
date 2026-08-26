@@ -4,24 +4,38 @@
  * Account Links + Safari are the old path.
  * Account Sessions + the iOS StripeConnect SDK are the in-app path.
  *
- * disable_stripe_user_authentication can only be true when the platform
- * collects requirements (controller.requirement_collection = "application").
- * That is what keeps Stripe from showing an ASWebAuthenticationSession login.
+ * Pluse connected accounts already use:
+ *   controller.requirement_collection = "application"
+ *   stripe_dashboard.type = "none"
+ * so disable_stripe_user_authentication is valid and keeps Stripe login
+ * from opening a browser popover.
  */
+
+export const PLUSE_PRODUCT_DESCRIPTION =
+  "Goods and services sold through the Plus platform";
+export const PLUSE_BUSINESS_URL = "https://pluse.to";
 
 export function buildConnectedAccountCreateParams({
   email,
   country = "US",
   businessType = "individual",
+  userId,
+  planId = "1",
+  firstName,
+  lastName,
 } = {}) {
   if (!email) {
     throw new Error("email is required to create a connected account");
   }
 
-  return {
+  const params = {
     country,
     email,
     business_type: businessType,
+    business_profile: {
+      product_description: PLUSE_PRODUCT_DESCRIPTION,
+      url: PLUSE_BUSINESS_URL,
+    },
     controller: {
       requirement_collection: "application",
       fees: { payer: "application" },
@@ -29,12 +43,26 @@ export function buildConnectedAccountCreateParams({
       stripe_dashboard: { type: "none" },
     },
     capabilities: {
+      card_payments: { requested: true },
       transfers: { requested: true },
     },
     metadata: {
+      created_via: "ios_embedded_onboarding",
       onboarding_surface: "ios_embedded",
+      emmber_user_id: userId ? String(userId) : "",
+      emmber_plan_id: String(planId),
     },
   };
+
+  if (firstName || lastName) {
+    params.individual = {
+      email,
+      ...(firstName ? { first_name: firstName } : {}),
+      ...(lastName ? { last_name: lastName } : {}),
+    };
+  }
+
+  return params;
 }
 
 export function buildAccountSessionCreateParams(accountId, { collectBankAccount = true } = {}) {
@@ -48,7 +76,6 @@ export function buildAccountSessionCreateParams(accountId, { collectBankAccount 
       account_onboarding: {
         enabled: true,
         features: {
-          // Required to keep KYC inside the app instead of a Stripe login popover.
           disable_stripe_user_authentication: true,
           external_account_collection: collectBankAccount,
         },
@@ -73,6 +100,7 @@ export function mapAccountStatus(account) {
     payoutsEnabled: Boolean(account.payouts_enabled),
     currentlyDue,
     pastDue,
+    disabledReason: requirements.disabled_reason || null,
     isReadyForPayouts:
       Boolean(account.details_submitted) &&
       Boolean(account.payouts_enabled) &&
@@ -88,7 +116,16 @@ export function createOnboardingService({ stripe, accountsByUserId }) {
 
   const store = accountsByUserId || new Map();
 
-  async function ensureConnectedAccount({ userId, email, country, businessType, existingAccountId }) {
+  async function ensureConnectedAccount({
+    userId,
+    email,
+    country,
+    businessType,
+    existingAccountId,
+    planId,
+    firstName,
+    lastName,
+  }) {
     if (existingAccountId) {
       store.set(userId, existingAccountId);
       return existingAccountId;
@@ -100,20 +137,22 @@ export function createOnboardingService({ stripe, accountsByUserId }) {
     }
 
     const account = await stripe.accounts.create(
-      buildConnectedAccountCreateParams({ email, country, businessType })
+      buildConnectedAccountCreateParams({
+        email,
+        country,
+        businessType,
+        userId,
+        planId,
+        firstName,
+        lastName,
+      })
     );
     store.set(userId, account.id);
     return account.id;
   }
 
-  async function createAccountSession({ userId, email, country, businessType, existingAccountId }) {
-    const accountId = await ensureConnectedAccount({
-      userId,
-      email,
-      country,
-      businessType,
-      existingAccountId,
-    });
+  async function createAccountSession(user) {
+    const accountId = await ensureConnectedAccount(user);
     const session = await stripe.accountSessions.create(
       buildAccountSessionCreateParams(accountId)
     );
@@ -132,17 +171,35 @@ export function createOnboardingService({ stripe, accountsByUserId }) {
   async function getAccountStatus({ userId, existingAccountId }) {
     const accountId = existingAccountId || store.get(userId);
     if (!accountId) {
-      throw new Error("No connected account is linked to this user");
+      return {
+        accountId: null,
+        detailsSubmitted: false,
+        chargesEnabled: false,
+        payoutsEnabled: false,
+        currentlyDue: [],
+        pastDue: [],
+        disabledReason: null,
+        isReadyForPayouts: false,
+      };
     }
 
     const account = await stripe.accounts.retrieve(accountId);
     return mapAccountStatus(account);
   }
 
+  function rememberAccountFromWebhook(account) {
+    const userId = account?.metadata?.emmber_user_id;
+    if (userId && account.id) {
+      store.set(userId, account.id);
+    }
+    return userId ? mapAccountStatus(account) : null;
+  }
+
   return {
     ensureConnectedAccount,
     createAccountSession,
     getAccountStatus,
+    rememberAccountFromWebhook,
   };
 }
 

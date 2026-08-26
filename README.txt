@@ -1,1 +1,1 @@
-See README.md for in-app Stripe Connect onboarding on iOS.
+See README.md — in-app Stripe Connect onboarding for iOS.
