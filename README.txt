@@ -1,1 +1,1 @@
-Hello from Git and GitHub
+See README.md — in-app Stripe Connect onboarding for iOS.
