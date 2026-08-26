@@ -3,7 +3,7 @@ import SwiftUI
 
 struct PayoutSetupView: View {
     @State private var status = StripeConnectAccountStatus()
-    @State private var message = "Loading payout status…"
+    @State private var validationIssues: [String] = []
     @State private var isLoading = true
 
     private var configuration: StripeConnectOnboardingCoordinator.Configuration {
@@ -15,54 +15,91 @@ struct PayoutSetupView: View {
 
     var body: some View {
         NavigationView {
-            VStack(alignment: .leading, spacing: 20) {
-                Text("Get paid")
-                    .font(.largeTitle.bold())
-                Text("Complete Stripe setup inside Pluse. This screen does not open Safari.")
-                    .foregroundStyle(.secondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("Get paid")
+                        .font(.largeTitle.bold())
+                    Text("Finish payout setup inside Pluse. See your progress and pick up where you left off.")
+                        .foregroundStyle(.secondary)
 
-                statusCard
+                    OnboardingProgressCard(
+                        progress: status.progress,
+                        isLoading: isLoading
+                    )
 
-                if !status.isReadyForPayouts {
-                    StripeConnectOnboardingButton(
-                        configuration: configuration,
-                        label: status.accountId == nil ? "Set up payouts" : "Continue Stripe setup"
-                    ) { result in
-                        apply(result)
+                    if status.isReadyForPayouts {
+                        successCard
+                    } else if status.progress.isUnderReview {
+                        reviewCard
+                    }
+
+                    if !validationIssues.isEmpty && !status.isReadyForPayouts {
+                        issuesCard
+                    }
+
+                    if !status.isReadyForPayouts {
+                        StripeConnectOnboardingButton(
+                            configuration: configuration,
+                            label: buttonLabel
+                        ) { result in
+                            apply(result)
+                            Task { await refreshValidation() }
+                        }
                     }
                 }
-
-                Spacer()
+                .padding()
             }
-            .padding()
             .navigationBarTitleDisplayMode(.inline)
+            .refreshable {
+                await refreshStatus()
+                await refreshValidation()
+            }
             .task {
                 await refreshStatus()
+                await refreshValidation()
             }
         }
         .navigationViewStyle(.stack)
     }
 
-    private var statusCard: some View {
+    private var buttonLabel: String {
+        if status.accountId == nil {
+            return "Start payout setup"
+        }
+        return status.progress.continueLabel
+    }
+
+    private var successCard: some View {
+        Label("Everything looks good. This host can receive payouts.", systemImage: "sparkles")
+            .font(.subheadline)
+            .foregroundStyle(.green)
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.green.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var reviewCard: some View {
+        Label("Stripe is reviewing your details. Pull to refresh for updates.", systemImage: "clock")
+            .font(.subheadline)
+            .foregroundStyle(.orange)
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var issuesCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(
-                status.isReadyForPayouts ? "Payouts enabled" : "Payouts not ready",
-                systemImage: status.isReadyForPayouts ? "checkmark.circle.fill" : "exclamationmark.circle"
-            )
-            .foregroundStyle(status.isReadyForPayouts ? Color.green : Color.primary)
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            if let accountId = status.accountId {
-                Text(accountId)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.tertiary)
+            Text("Before payouts can start")
+                .font(.subheadline.weight(.semibold))
+            ForEach(validationIssues, id: \.self) { issue in
+                Label(issue, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .redacted(reason: isLoading ? .placeholder : [])
+        .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func refreshStatus() async {
@@ -75,20 +112,25 @@ struct PayoutSetupView: View {
         }
     }
 
+    private func refreshValidation() async {
+        do {
+            let validation = try await StripeConnectAPIClient(
+                backendBaseURL: AppConfig.backendBaseURL,
+                authToken: AppConfig.authToken
+            ).fetchSetupValidation()
+            validationIssues = validation.issues
+        } catch {
+            validationIssues = [error.localizedDescription]
+        }
+    }
+
     private func apply(_ result: Result<StripeConnectAccountStatus, Error>) {
         isLoading = false
         switch result {
         case .success(let loaded):
             status = loaded
-            if loaded.isReadyForPayouts {
-                message = "Stripe setup is complete. This host can receive payouts."
-            } else if loaded.remainingRequirements.isEmpty {
-                message = loaded.disabledReason ?? "Stripe is still reviewing this account."
-            } else {
-                message = "Stripe still needs: \(loaded.remainingRequirements.joined(separator: ", "))"
-            }
-        case .failure(let error):
-            message = error.localizedDescription
+        case .failure:
+            break
         }
     }
 }

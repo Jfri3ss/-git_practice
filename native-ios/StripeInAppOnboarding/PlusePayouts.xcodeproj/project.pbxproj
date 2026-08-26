@@ -10,6 +10,7 @@
 		A10000000000000000000013 /* PlusePayoutsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000007 /* PlusePayoutsApp.swift */; };
 		A10000000000000000000014 /* PayoutSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* PayoutSetupView.swift */; };
 		A10000000000000000000015 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000009 /* AppConfig.swift */; };
+		A10000000000000000000016 /* OnboardingProgressCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000028 /* OnboardingProgressCard.swift */; };
 		A10000000000000000000012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* Assets.xcassets */; };
 		A10000000000000000000024 /* StripeInAppOnboarding in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000023 /* StripeInAppOnboarding */; };
 /* End PBXBuildFile section */
@@ -21,6 +22,7 @@
 		A10000000000000000000009 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		A10000000000000000000010 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000011 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A10000000000000000000028 /* OnboardingProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingProgressCard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -41,6 +43,7 @@
 				A10000000000000000000007 /* PlusePayoutsApp.swift */,
 				A10000000000000000000008 /* PayoutSetupView.swift */,
 				A10000000000000000000009 /* AppConfig.swift */,
+				A10000000000000000000028 /* OnboardingProgressCard.swift */,
 				A10000000000000000000010 /* Info.plist */,
 				A10000000000000000000011 /* Assets.xcassets */,
 			);
@@ -141,6 +144,7 @@
 				A10000000000000000000013 /* PlusePayoutsApp.swift in Sources */,
 				A10000000000000000000014 /* PayoutSetupView.swift in Sources */,
 				A10000000000000000000015 /* AppConfig.swift in Sources */,
+				A10000000000000000000016 /* OnboardingProgressCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

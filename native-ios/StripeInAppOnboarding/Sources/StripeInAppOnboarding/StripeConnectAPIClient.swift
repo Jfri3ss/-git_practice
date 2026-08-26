@@ -24,6 +24,10 @@ public struct StripeConnectAPIClient: Sendable {
         try await get(path: "/connect/account-status")
     }
 
+    public func fetchSetupValidation() async throws -> StripeConnectSetupValidation {
+        try await get(path: "/connect/setup-validation")
+    }
+
     private func get<T: Decodable>(path: String) async throws -> T {
         var request = URLRequest(url: endpoint(path))
         request.httpMethod = "GET"

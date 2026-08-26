@@ -105,6 +105,19 @@ export function createApp({
     }
   });
 
+  app.get("/connect/setup-validation", async (req, res) => {
+    try {
+      const user = authenticate(req);
+      const validation = await onboardingService.validateAccountSetup({
+        userId: user.id,
+        existingAccountId: user.stripeAccountId,
+      });
+      res.json(validation);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
   return app;
 }
 

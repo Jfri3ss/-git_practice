@@ -3,13 +3,11 @@
  *
  * Account Links + Safari are the old path.
  * Account Sessions + the iOS StripeConnect SDK are the in-app path.
- *
- * Pluse connected accounts already use:
- *   controller.requirement_collection = "application"
- *   stripe_dashboard.type = "none"
- * so disable_stripe_user_authentication is valid and keeps Stripe login
- * from opening a browser popover.
  */
+
+import { buildOnboardingProgress, mapAccountStatus, validateSetupReadiness } from "./onboardingProgress.js";
+
+export { buildOnboardingProgress, mapAccountStatus, validateSetupReadiness };
 
 export const PLUSE_PRODUCT_DESCRIPTION =
   "Goods and services sold through the Plus platform";
@@ -84,31 +82,6 @@ export function buildAccountSessionCreateParams(accountId, { collectBankAccount 
   };
 }
 
-export function mapAccountStatus(account) {
-  if (!account || !account.id) {
-    throw new Error("account is required");
-  }
-
-  const requirements = account.requirements || {};
-  const currentlyDue = requirements.currently_due || [];
-  const pastDue = requirements.past_due || [];
-
-  return {
-    accountId: account.id,
-    detailsSubmitted: Boolean(account.details_submitted),
-    chargesEnabled: Boolean(account.charges_enabled),
-    payoutsEnabled: Boolean(account.payouts_enabled),
-    currentlyDue,
-    pastDue,
-    disabledReason: requirements.disabled_reason || null,
-    isReadyForPayouts:
-      Boolean(account.details_submitted) &&
-      Boolean(account.payouts_enabled) &&
-      currentlyDue.length === 0 &&
-      pastDue.length === 0,
-  };
-}
-
 export function createOnboardingService({ stripe, accountsByUserId }) {
   if (!stripe) {
     throw new Error("stripe client is required");
@@ -178,13 +151,44 @@ export function createOnboardingService({ stripe, accountsByUserId }) {
         payoutsEnabled: false,
         currentlyDue: [],
         pastDue: [],
+        eventuallyDue: [],
+        pendingVerification: [],
         disabledReason: null,
         isReadyForPayouts: false,
+        progress: buildOnboardingProgress({ requirements: {} }),
       };
     }
 
     const account = await stripe.accounts.retrieve(accountId);
     return mapAccountStatus(account);
+  }
+
+  async function validateAccountSetup({ userId, existingAccountId }) {
+    const accountId = existingAccountId || store.get(userId);
+    if (!accountId) {
+      return {
+        isSetupCorrect: false,
+        canReceivePayouts: false,
+        issues: ["No Stripe connected account is linked to this host."],
+        progress: buildOnboardingProgress({ requirements: {} }),
+        status: {
+          accountId: null,
+          detailsSubmitted: false,
+          chargesEnabled: false,
+          payoutsEnabled: false,
+          currentlyDue: [],
+          pastDue: [],
+          eventuallyDue: [],
+          pendingVerification: [],
+          disabledReason: null,
+          isReadyForPayouts: false,
+          progress: buildOnboardingProgress({ requirements: {} }),
+        },
+      };
+    }
+
+    const account = await stripe.accounts.retrieve(accountId);
+    return validateSetupReadiness(account);
   }
 
   function rememberAccountFromWebhook(account) {
@@ -199,6 +203,7 @@ export function createOnboardingService({ stripe, accountsByUserId }) {
     ensureConnectedAccount,
     createAccountSession,
     getAccountStatus,
+    validateAccountSetup,
     rememberAccountFromWebhook,
   };
 }

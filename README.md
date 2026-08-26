@@ -1,36 +1,27 @@
 # In-app Stripe Connect onboarding (iOS)
 
-Yes — and this repo now implements it.
+Hosts finish payout setup inside Pluse with visible progress, so they don't drop off at a browser handoff.
 
-Existing Pluse connected accounts already use `controller.requirement_collection = "application"` and `stripe_dashboard.type = "none"`. That is the configuration that lets Stripe’s **embedded** onboarding stay inside the iOS app without a Safari / `ASWebAuthenticationSession` login popover.
+## Retention-focused UX
 
-```text
-iOS PlusePayouts → POST /connect/account-session → StripeConnect AccountOnboardingController
-```
-
-Do not open Account Links in a browser. Do not load those URLs in `WKWebView`.
+- **Progress bar + step checklist** (business, personal details, identity, bank, terms)
+- **Continue where you left off** — button label reflects the next incomplete step
+- **Under-review state** when Stripe is verifying but nothing else is due
+- **Setup validation** — `GET /connect/setup-validation` lists what still blocks payouts
 
 ## Run it
 
-1. In `server/stripe-in-app-onboarding/`:
+1. `server/stripe-in-app-onboarding`: copy `.env.example` → `.env`, set Stripe keys, `npm start`
+2. Open `native-ios/StripeInAppOnboarding/PlusePayouts.xcodeproj` on a Mac and run the Simulator
+3. Pull to refresh after closing Stripe onboarding to see updated progress
 
-   ```bash
-   cp .env.example .env
-   # set STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY (test keys)
-   npm install
-   npm start
-   ```
+## API
 
-   Optional: set `DEMO_STRIPE_ACCOUNT_ID` to an existing Pluse connected account so the app continues that host instead of creating a new one.
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /connect/account-session` | Client secret for in-app StripeConnect UI |
+| `GET /connect/account-status` | Status + `progress` object for the checklist |
+| `GET /connect/setup-validation` | Whether payouts are correctly configured |
+| `POST /connect/webhook` | `account.updated` → refresh stored account mapping |
 
-2. On a Mac, open `native-ios/StripeInAppOnboarding/PlusePayouts.xcodeproj`, add your signing team, and run on the Simulator. The app talks to `http://127.0.0.1:4242` and presents Stripe onboarding full-screen.
-
-3. Tap **Set up payouts**. The form stays in the app. After you close it, the screen reloads `details_submitted` / `payouts_enabled` / remaining requirements.
-
-## What to copy into the real Pluse app
-
-- Swift package: `native-ios/StripeInAppOnboarding` (add `StripeConnect` via [stripe-ios-spm](https://github.com/stripe/stripe-ios-spm) 26.7+)
-- Present `StripeConnectOnboardingCoordinator` from the host payout screen
-- Backend: `POST /connect/account-session`, `GET /connect/account-status`, `POST /connect/webhook` for `account.updated`
-
-`disable_stripe_user_authentication` is set on the Account Session. That flag is valid for the accounts Pluse already creates.
+Copy the Swift package into real Pluse `native-ios/` and replace Account Link browser flows with `StripeConnectOnboardingCoordinator`.
