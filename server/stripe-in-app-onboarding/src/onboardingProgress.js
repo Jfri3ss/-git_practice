@@ -47,8 +47,6 @@ export const ONBOARDING_STEPS = [
   },
 ];
 
-const STEP_ORDER = ONBOARDING_STEPS.map((step) => step.id);
-
 function matchesPattern(requirement, pattern) {
   return requirement === pattern || requirement.startsWith(`${pattern}.`);
 }
