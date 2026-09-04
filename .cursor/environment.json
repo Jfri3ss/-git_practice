@@ -1,4 +1,4 @@
 {
   "name": "Stripe in-app onboarding (Node server)",
-  "install": "cd server/stripe-in-app-onboarding && npm ci"
+  "install": "cd /agent/repos/-git_practice/server/stripe-in-app-onboarding && npm ci"
 }
